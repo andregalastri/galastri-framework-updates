@@ -1,2 +1,2 @@
 # galastri-framework-updates
-Repository of updates of Galastri Framework
+Updates of Galastri Framework. This repository is mainly used by the new updater of the framework.
