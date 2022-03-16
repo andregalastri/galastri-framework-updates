@@ -1,0 +1,12 @@
+CHANGELOG                                 2022-03-16
+
+Galastri Framework 0.5.0-alpha
+----------------------------------------------------
+
+ - New feature: The Updater
+
+Now you can update the framework by using the
+"updater" utility. It is a PHP-CLI file that helps
+you to update the framework without troubles.
+
+###
