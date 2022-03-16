@@ -18,7 +18,6 @@ final class Updater
     const LOCAL_TMP_PATH = 'tmp';
     const LOCAL_PACKAGE_PATH = 'tmp/packages';
     const LOCAL_BACKUP_PATH = 'tmp/backup';
-
     const LOCAL_WORKING_FOLDER = 'tmp/working';
 
     const REMOTE_PACKAGE_URL = 'https://github.com/andregalastri/galastri-framework-updates/archive/refs/tags';
@@ -34,7 +33,12 @@ final class Updater
     private function __construct()
     {
     }
-
+    
+    /**
+     * prepare
+     *
+     * @return void
+     */
     private static function prepare()
     {
         self::isWritable(__DIR__);
@@ -66,7 +70,13 @@ final class Updater
 
         self::$restoreBackupStatus = false;
     }
-
+    
+    /**
+     * isWritable
+     *
+     * @param  mixed $fileOrDirectory
+     * @return void
+     */
     private static function isWritable($fileOrDirectory): void
     {
         if (!is_writable($fileOrDirectory)) {
@@ -75,7 +85,12 @@ final class Updater
             exit;
         }
     }
-
+    
+    /**
+     * execute
+     *
+     * @return void
+     */
     public static function execute(): void
     {
         self::prepare();
@@ -106,7 +121,12 @@ final class Updater
         } while($option != 0);
     }
 
-
+    
+    /**
+     * checkBackups
+     *
+     * @return void
+     */
     private static function checkBackups(): void
     {
         $backupList = [];
@@ -159,7 +179,12 @@ final class Updater
         }
         self::pressEnterToContinue();
     }
-
+    
+    /**
+     * checkUpdates
+     *
+     * @return void
+     */
     private static function checkUpdates(): void
     {
         $currentVersion = trim(file_get_contents('galastri/VERSION'));
@@ -215,15 +240,27 @@ final class Updater
         }
         self::pressEnterToContinue();
     }
-
+    
+    /**
+     * executeRestore
+     *
+     * @param  mixed $backupPath
+     * @return void
+     */
     private static function executeRestore(string $backupPath)
     {
         self::drawMessageBox(Language::text('RESTORING_BACKUP', 0));
         self::deleteAll('galastri');
-        self::recursiveCopy($backupPath.'/galastri', 'galastri');
+        self::copyDirectory($backupPath.'/galastri', 'galastri');
         self::drawMessageBox(Language::text('BACKUP_RESTORED', 0));
     }
-
+    
+    /**
+     * executeBackup
+     *
+     * @param  mixed $currentVersion
+     * @return void
+     */
     private static function executeBackup(string $currentVersion)
     {
         self::drawMessageBox(Language::text('BACKUP_PROCESS', 0));
@@ -233,13 +270,23 @@ final class Updater
         if (!file_exists($backupFolder)) {
             mkdir($backupFolder);
         }
-        self::recursiveCopy("galastri", $backupFolder, 'galastri');
+        self::copyDirectory("galastri", $backupFolder, 'galastri');
 
         self::drawMessageBox(Language::text('BACKUP_PROCESS', 1), $backupFolder);
         self::wait(5, true, false);
         echo "\n";
+        exit;
     }
-
+    
+    /**
+     * executeUpdate
+     *
+     * @param  mixed $currentVersion
+     * @param  mixed $versionList
+     * @param  mixed $versionPosition
+     * @param  mixed $packageQty
+     * @return void
+     */
     private static function executeUpdate(string $currentVersion, array $versionList, int $versionPosition, int $packageQty): void
     {
         self::drawMessageBox(Language::text('STARTING_UPDATE', 0));
@@ -256,6 +303,11 @@ final class Updater
             if ($packageNumber > 1) {
                 self::draw('thick', 'line');
             }
+
+            if (!file_exists(self::LOCAL_WORKING_FOLDER)) {
+                mkdir(self::LOCAL_WORKING_FOLDER);
+            }
+
             $packageTarGzFile = $version.'.tar.gz';
             $packageTarFile = $version.'.tar';
             $packageTarGzPath = self::LOCAL_WORKING_FOLDER.'/'.$packageTarGzFile;
@@ -276,7 +328,7 @@ final class Updater
             if (file_exists($packageFolder)) {
                 self::deleteAll($packageFolder);
             }
-            self::recursiveCopy($workingFolder.'/'.$version, self::LOCAL_PACKAGE_PATH.'/'.$version);
+            self::copyDirectory($workingFolder.'/'.$version, self::LOCAL_PACKAGE_PATH.'/'.$version);
             self::deleteAll($workingFolder);
 
             self::text('thick', Language::text('UPDATE_PROCESS', 02));
@@ -287,37 +339,59 @@ final class Updater
 
             $copyFiles = require($packageFolder.'/copy.php');
             foreach($copyFiles as $file) {
-                self::recursiveCopy($packageFolder.'/'.$file, $file);
+                self::copyFile($packageFolder.'/'.$file, $file);
             }
 
-            $changeLogPath = 'change-log.txt';
+            $changeLogPath = $packageFolder.'/change-log.txt';
             if (file_exists($changeLogPath)) {
-                rename($changeLogPath, 'Changelog v.'.$version.'.txt');
+                self::copyFile($changeLogPath, 'Changelog v.'.$version.'.txt');
             }
 
             $newUpdater = $packageFolder.'/updater';
             if (file_exists($newUpdater)) {
+
+                $packageNumber++;
+                $lastVersion = $version;
+                self::drawMessageBox(Language::text('UPDATE_DONE', 1).$lastVersion);
+
+                self::draw('thick', 'bottom');
                 self::drawMessageBox(
                     Language::text('UPDATER_UPDATED', 0),
                     Language::text('UPDATER_UPDATED', 1),
                     '',
                     Language::text('UPDATER_UPDATED', 2)
                 );
-            }
 
-            $packageNumber++;
-            $lastVersion = $version;
+                self::pressEnterToContinue();
+                exit;
+            } else {
+                $packageNumber++;
+                $lastVersion = $version;
+            }
         }
         self::draw('thick', 'bottom');
         self::drawMessageBox(Language::text('UPDATE_DONE', 0), Language::text('UPDATE_DONE', 1).$lastVersion);
     }
-
+    
+    /**
+     * pressEnterToContinue
+     *
+     * @return void
+     */
     private static function pressEnterToContinue(): void
     {
         readline(Language::text('PRESS_ENTER_TO_CONTINUE', 0));
         echo "\n\n\n";
     }
-
+    
+    /**
+     * wait
+     *
+     * @param  mixed $seconds
+     * @param  mixed $writeDots
+     * @param  mixed $longJump
+     * @return void
+     */
     private static function wait(int $seconds, bool $writeDots = true, bool $longJump = true): void
     {
         for ($i = 0; $i < $seconds; $i++) {
@@ -326,7 +400,13 @@ final class Updater
         }
         echo $longJump ? "\n\n\n" : '';
     }
-
+    
+    /**
+     * drawMessageBox
+     *
+     * @param  mixed $messages
+     * @return void
+     */
     private static function drawMessageBox(string ...$messages): void
     {
         self::draw('doubled', 'top');
@@ -336,7 +416,12 @@ final class Updater
         self::draw('doubled', 'bottom');
     }
 
-
+    
+    /**
+     * drawMainWindow
+     *
+     * @return void
+     */
     private static function drawMainWindow(): void
     {
         self::draw('thick', 'top');
@@ -354,7 +439,15 @@ final class Updater
         self::draw('thin', 'bottom');
     }
 
-
+    
+    /**
+     * drawUpdateWindow
+     *
+     * @param  mixed $currentVersion
+     * @param  mixed $packageQty
+     * @param  mixed $lastVersion
+     * @return void
+     */
     private static function drawUpdateWindow(string $currentVersion, int $packageQty, string $lastVersion): void
     {
         $headerText = $packageQty > 1 ? Language::text('UPDATE_WINDOW_HEADER', 0).$packageQty.Language::text('UPDATE_WINDOW_HEADER', 1) : Language::text('UPDATE_WINDOW_HEADER', 2);
@@ -377,7 +470,13 @@ final class Updater
         self::text('thin', Language::text('UPDATE_WINDOW_ABOUT', 5), 'center');
         self::draw('thin', 'bottom');
     }
-
+    
+    /**
+     * drawBackupWindow
+     *
+     * @param  mixed $backupList
+     * @return void
+     */
     private static function drawBackupWindow(array $backupList): void
     {
         $backupQty = count($backupList);
@@ -404,7 +503,15 @@ final class Updater
         self::draw('thin', 'bottom');
     }
 
-
+    
+    /**
+     * text
+     *
+     * @param  mixed $style
+     * @param  mixed $message
+     * @param  mixed $align
+     * @return void
+     */
     private static function text(string $style, string $message, string $align = 'left'): void
     {
         $textMaxSize = self::LAYOUT_SIZE - 2;
@@ -436,7 +543,13 @@ final class Updater
         }
 
     }
-
+    
+    /**
+     * textAlign
+     *
+     * @param  mixed $align
+     * @return int
+     */
     private static function textAlign(string $align): int
     {
         switch($align){
@@ -453,7 +566,14 @@ final class Updater
                 return STR_PAD_LEFT;
         }
     }
-
+    
+    /**
+     * draw
+     *
+     * @param  mixed $style
+     * @param  mixed $type
+     * @return void
+     */
     private static function draw(string $style, string $type): void
     {
         switch($type) {
@@ -493,7 +613,7 @@ final class Updater
      * 
      * @return void
      */
-    private static function recursiveCopy(string $sourceDirectory, string $destinationDirectory, string $childFolder = '', array $ignorePaths = []): void {
+    private static function copyDirectory(string $sourceDirectory, string $destinationDirectory, string $childFolder = '', array $ignorePaths = []): void {
         $directory = opendir($sourceDirectory);
 
         if (is_dir($destinationDirectory) === false) {
@@ -511,7 +631,7 @@ final class Updater
                 }
 
                 if (is_dir("$sourceDirectory/$file") === true) {
-                    self::recursiveCopy("$sourceDirectory/$file", "$destinationDirectory/$childFolder/$file", '', $ignorePaths);
+                    self::copyDirectory("$sourceDirectory/$file", "$destinationDirectory/$childFolder/$file", '', $ignorePaths);
                 } else {
                     foreach ($ignorePaths as $ignore) {
                         if ($ignore == substr($sourceDirectory, 0, strlen($ignore))) {
@@ -533,7 +653,7 @@ final class Updater
             }
 
             if (is_dir("$sourceDirectory/$file") === true) {
-                self::recursiveCopy("$sourceDirectory/$file", "$destinationDirectory/$file", '', $ignorePaths);
+                self::copyDirectory("$sourceDirectory/$file", "$destinationDirectory/$file", '', $ignorePaths);
             }
             else {
                 foreach ($ignorePaths as $ignore) {
@@ -546,6 +666,23 @@ final class Updater
         }
 
         closedir($directory);
+    }
+    
+    /**
+     * copyFile
+     *
+     * @param  mixed $sourceFile
+     * @param  mixed $destinationFile
+     * @return void
+     */
+    private static function copyFile($sourceFile, $destinationFile) {
+        $path = pathinfo($destinationFile);
+
+        if (!file_exists($path['dirname'])) {
+            mkdir($path['dirname'], 0777, true);
+        }
+        
+        copy($sourceFile, $destinationFile);
     }
 
     /**
@@ -611,6 +748,9 @@ final class Updater
     }
 }
 
+/**
+ * Language
+ */
 final class Language
 {
     const AVAILABLE_LANGUAGES = ['br', 'en'];
@@ -820,7 +960,7 @@ final class Language
 
     const CONFIRM_UPDATE = [
         'en' => [
-            'Start update? [y/N]',
+            'Start update? [y/N]: ',
         ],
         'br' => [
             'Deseja atualizar? [s/N]: ',
