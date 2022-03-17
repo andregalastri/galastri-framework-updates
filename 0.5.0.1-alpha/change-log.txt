@@ -1,9 +1,0 @@
-CHANGELOG                                 2022-03-17
-
-Galastri Framework 0.5.0.1-alpha
-----------------------------------------------------
- - Updated the updater
-
-Way better restoration process
-
-###
