@@ -6,4 +6,5 @@ return array (
   2 => '0.5.0.1-alpha',
   3 => '0.5.0.2-alpha',
   4 => '0.5.1-alpha',
+  5 => '0.5.2-alpha',
 );
