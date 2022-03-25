@@ -8,4 +8,5 @@ return array (
   4 => '0.5.1-alpha',
   5 => '0.5.2-alpha',
   6 => '0.5.3-alpha',
+  7 => '0.5.4-alpha',
 );
